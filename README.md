@@ -5,3 +5,7 @@ Question 1: `python my_hmac.py`
 Question 2 and 3: `python dsa.py`
 
 ![](q2-3.png)
+
+Question 4: `python samantha.py`
+
+![](q4.png)
