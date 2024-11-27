@@ -4,6 +4,13 @@ import hashlib
 import hmac
 
 
+# 1. [1 mark] Implement HMAC-SHA-512. You may use any library or toolkit to call
+# SHA-512, but implement the rest of HMAC yourself. Compute the HMAC of the
+# following string: “I am using this input string to test my own implementation of
+# HMAC-SHA-512.” Once that is completed, use any library or toolkit to call
+# HMAC-SHA-512 on this string to confirm that your implementation is correct.
+
+
 def my_hmac(K: bytes, M: bytes) -> hashlib._Hash:
     # REFERENCE: Stallings Page 377-378
     # H = embedded hash function (e.g., MD5, SHA-1, RIPEMD-160)
