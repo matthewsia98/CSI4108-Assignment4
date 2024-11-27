@@ -1,6 +1,7 @@
 import hashlib
 import random
 import json
+import os
 import sys
 
 
@@ -19,6 +20,11 @@ random.seed(0)
 # or toolkit to find p and q and to call SHA-1, but implement the rest of DSA yourself.
 # Sign the message m = 582346829057612 using the privacy key x. Verify the
 # signature using the public key y.
+
+
+# 3. [1 mark] With your implementation from question #2, sign the message m =
+# 8061474912583 using the same value of k. Show that an observer of the two
+# signatures will be able to completely compromise security.
 
 
 def htoi(h: str) -> int:
@@ -62,7 +68,9 @@ def generate_keys() -> dict[str, dict[str, int]]:
     return {"public": {"p": p, "q": q, "g": g, "y": y}, "private": {"x": x}}
 
 
-def dsa_sign(keys: dict[str, dict[str, int]], M: bytes) -> tuple[int, int]:
+def dsa_sign(
+    keys: dict[str, dict[str, int]], M: bytes, k: int | None = None
+) -> tuple[int, tuple[int, int]]:
     p, q, g, y = keys["public"].values()
     x = keys["private"]["x"]
 
@@ -71,17 +79,15 @@ def dsa_sign(keys: dict[str, dict[str, int]], M: bytes) -> tuple[int, int]:
     # the user's private key (x),
     # the hash code of the message H(M),
     # and an additional integer k that should be generated randomly or pseudorandomly and be unique for each signing.
-    k = random.randint(1, q - 1)
-    print(f"{k = }")
-    print()
+    k = k or random.randint(1, q - 1)
 
     # r = (g^k mod p) mod q
     r = pow(g, k, p) % q
-    # s = [k^(-1) * (H(M) + xr)] mod q
+    # s = [k^-1 * (H(M) + xr)] mod q
     h_m = int.from_bytes(hashlib.sha1(M).digest())
     s = (pow(k, -1, q) * (h_m + x * r)) % q
 
-    return (r, s)
+    return k, (r, s)
 
 
 def dsa_verify(
@@ -96,7 +102,7 @@ def dsa_verify(
     # and the hash code of the incoming message.
     # If this quantity matches the r component of the signature, then the signature is validated.
 
-    # w = s^(-1) mod q
+    # w = s^-1 mod q
     w = pow(s, -1, q)
 
     # u1 = [H(M)w] mod q
@@ -114,21 +120,76 @@ def dsa_verify(
 if __name__ == "__main__":
     print()
 
-    m = 58234682905761
-    m_bytes = int.to_bytes(m, 8)
-    print(f"{m = }")
-    print()
-
     keys = generate_keys()
     print("keys =", json.dumps(keys, indent=4))
     print()
 
-    signature = dsa_sign(keys, m_bytes)
-    print(f"{signature = }")
+    print("=" * os.get_terminal_size().columns)
     print()
 
-    r, s = signature
-    v = dsa_verify(keys, m_bytes, signature)
-    print(f"{v = }")
+    m1 = 58234682905761
+    m1_bytes = int.to_bytes(m1, 8)
+    print(f"{m1 = }")
     print()
-    assert v == r
+
+    k1, sig1 = dsa_sign(keys, m1_bytes)
+    print(f"{k1 = }")
+    print()
+    print(f"{sig1 = }")
+    print()
+
+    r1, s1 = sig1
+    v1 = dsa_verify(keys, m1_bytes, (r1, s1))
+    print(f"{v1 = }")
+    print()
+    assert v1 == r1
+
+    print("=" * os.get_terminal_size().columns)
+    print()
+
+    m2 = 8061474912583
+    m2_bytes = int.to_bytes(m2, 8)
+    print(f"{m2 = }")
+    print()
+
+    k2, sig2 = dsa_sign(keys, m2_bytes, k1)
+    print(f"{k2 = }")
+    print()
+    print(f"{sig2 = }")
+    print()
+
+    r2, s2 = sig2
+    v2 = dsa_verify(keys, m2_bytes, (r2, s2))
+    print(f"{v2 = }")
+    print()
+    assert v2 == r2
+
+    print("=" * os.get_terminal_size().columns)
+    print()
+
+    # When the same k is reused for signing two different messages, r1 = r2
+    assert r1 == r2
+
+    # We have equations
+    #   s1 = k^-1 * (H(m1) + xr) mod q
+    #   s2 = k^-1 * (H(m2) + xr) mod q
+    # We can solve for k
+    #   (k * s1) - (k * s2) = H(m1) - H(m2) mod q
+    #   k = (H(m1) - H(m2)) / (s1 - s2) mod q
+    p, q, g, y = keys["public"].values()
+    hm1 = int.from_bytes(hashlib.sha1(m1_bytes).digest())
+    hm2 = int.from_bytes(hashlib.sha1(m2_bytes).digest())
+    k = ((hm1 - hm2) * pow(s1 - s2, -1, q)) % q
+    print(f"{k = }")
+    print()
+    # Once k is computed, the private key x can be derived from either signature
+    #   x1 = ((s1 * k) - H(m1)) / r1 mod q or
+    #   x2 = ((s2 * k) - H(m2)) / r2 mod q
+    x1 = (((s1 * k) - hm1) * pow(r1, -1, q)) % q
+    print(f"{x1 = }")
+    print()
+    x2 = (((s2 * k) - hm2) * pow(r2, -1, q)) % q
+    print(f"{x2 = }")
+    print()
+    x = keys["private"]["x"]
+    assert x == x1 == x2
