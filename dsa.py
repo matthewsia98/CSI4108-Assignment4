@@ -72,6 +72,8 @@ def dsa_sign(keys: dict[str, dict[str, int]], M: bytes) -> tuple[int, int]:
     # the hash code of the message H(M),
     # and an additional integer k that should be generated randomly or pseudorandomly and be unique for each signing.
     k = random.randint(1, q - 1)
+    print(f"{k = }")
+    print()
 
     # r = (g^k mod p) mod q
     r = pow(g, k, p) % q
